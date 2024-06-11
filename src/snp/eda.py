@@ -18,18 +18,20 @@ class EDARunner:
     """
     Perform EDA for different datafram from data generation step.
     """
-    
-    def __init__(self, df, data_name, Show_info=True):
+
+    def __init__(self, df, data_name, col_names=["Timestamp", "Value"], Show_info=True):
         """
-        Initialize EDARunner class with the input DataFrame. Make columns to "Timestamp", "Values".
+        Initialize EDARunner class with the input DataFrame. Make columns to col_names.
 
         Args:
         - df (DataFrame): Input DataFrame for analysis.
         - data_name (str): The name of the dataset.
+        - col_names: Default as ["Timestamp", "Values"]. First value should be dates name, second should be target value name.
         - Show_info (Boolean): Default as True. Show the info of df.
         """
-        df.columns = ["Timestamp", "Values"]
-        df["Timestamp"] = pd.to_datetime(df["Timestamp"])
+        self.col_names = col_names
+        df.columns = col_names
+        df[self.col_names[0]] = pd.to_datetime(df[self.col_names[0]])
         self.df = df
         self.data_name = data_name
         self.default_file_path = f'/EDA_Result/{data_name}'
@@ -43,12 +45,12 @@ class EDARunner:
             display(df.info())
             display(df.describe())
             display(df.head())
-            df.sort_values(by="Timestamp", inplace=True)
+            df.sort_values(by=self.col_names[0], inplace=True)
             # Infer the frequency of the time series
-            frequency = pd.infer_freq(df["Timestamp"])
+            frequency = pd.infer_freq(df[self.col_names[0]])
 
             # Calculate the time period
-            time_period = df["Timestamp"].iloc[-1] - df["Timestamp"].iloc[0]
+            time_period = df[self.col_names[0]].iloc[-1] - df[self.col_names[0]].iloc[0]
 
             print("Time Period:", time_period)
             print("Frequency:", frequency)
@@ -61,9 +63,9 @@ class EDARunner:
         Plots a histogram of the values in the DataFrame.
         '''
         plt.figure(figsize=(5, 3))
-        sns.histplot(self.df['Values'], bins=50, kde=True, color=color)
-        plt.title('Histogram of Values')
-        plt.xlabel('Values')
+        sns.histplot(self.df[self.col_names[1]], bins=50, kde=True, color=color)
+        plt.title(f'Histogram of {self.col_names[1]}s for {self.data_name}')
+        plt.xlabel(f'{self.col_names[1]}s')
         plt.ylabel('Frequency')
 
         if save_plot:
@@ -74,13 +76,14 @@ class EDARunner:
             plt.savefig(file)
             print(f'Plot saved to {file}')
         plt.show()
-        
+
     def boxplot(self, save_plot=False, file_path=None, color=None):
         '''
         Plots a boxplot of the values in the DataFrame.
         '''
         plt.figure(figsize=(5, 3))
-        sns.boxplot(self.df['Values'],color=color)
+        sns.boxplot(self.df[self.col_names[1]],color=color)
+        plt.title(f'Box Plot of {self.col_names[1]}s for {self.data_name}')
 
         if save_plot:
             if file_path == None:
@@ -91,30 +94,31 @@ class EDARunner:
             print(f'Plot saved as {file}')
         plt.show()
 
-    def autocorrelation(self, save_plot=False, file_path=None, Partial_plot=False, color=None):
+    def autocorrelation(self, save_plot=False, file_path=None, Partial_plot=False, color=None,):
         '''
         Plots the autocorrelation and partial autocorrelation functions of the time series.
 
         Parameters:
         None
-        
+
         Returns:
         None. Displays the autocorrelation and partial autocorrelation plots.
         '''
+
         if Partial_plot:
             # Plot the partial autocorrelation
             fig, ax = plt.subplots(figsize=(15, 3))  # Ensure both plots have the same size
-            plot_acf(self.df['Values'], lags=40, ax=ax,color=color)
+            plot_acf(self.df[self.col_names[1]], lags=40, ax=ax,color=color)
             ax.set_title(f'Partial Autocorrelation Plot - {self.data_name}.png')
             ax.grid(True)
         else:
             # Plot the autocorrelation
             fig, ax = plt.subplots(figsize=(15, 3))
-            pd.plotting.autocorrelation_plot(self.df['Values'], ax=ax,color=color)
+            pd.plotting.autocorrelation_plot(self.df[self.col_names[1]], ax=ax,color=color)
             ax.set_title(f'Autocorrelation Plot - {self.data_name}.png')
             ax.set_ylim(-1, 1)  # Set y-axis limits
             ax.grid(True)
-        
+
         if save_plot:
             if file_path == None:
                 file_path = self.default_file_path
@@ -123,7 +127,7 @@ class EDARunner:
             plt.savefig(file)
             print(f'Plot saved as {file}')
         plt.show()
-    
+
 
     def overview(self, save_plot=False, Zoom_in=None, file_path=None, color=None):
         '''
@@ -140,22 +144,22 @@ class EDARunner:
         '''
         # Plot the synthetic time series
         plt.figure(figsize=(10, 6))
-        
+
         if Zoom_in:
-            plt.plot(self.df['Timestamp'][Zoom_in[0]:Zoom_in[1]], self.df['Values'][Zoom_in[0]:Zoom_in[1]], label="Synthetic Time Series", color=color)
+            plt.plot(self.df[self.col_names[0]][Zoom_in[0]:Zoom_in[1]], self.df[self.col_names[1]][Zoom_in[0]:Zoom_in[1]], label=f"{self.data_name} Time Series - Zoomed: {Zoom_in[0]} -- {Zoom_in[1]}", color=color)
         else:
-            plt.plot(self.df['Timestamp'], self.df['Values'], label="Synthetic Time Series", color=color)
-        
+            plt.plot(self.df[self.col_names[0]], self.df[self.col_names[1]], label=f"{self.data_name} Time Series", color=color)
+
         plt.title(self.data_name)
         plt.grid(True)
-        
+
         # Define date formatting
         date_format = mdates.DateFormatter('%m/%d/%y')
-        
+
         # Set x-axis date format
         plt.gca().xaxis.set_major_formatter(date_format)
         plt.xticks(rotation=45)
-        
+
         if save_plot:
             if file_path is None:
                 file_path = self.default_file_path
@@ -169,41 +173,60 @@ class EDARunner:
         plt.show()
 
 
-    def plot_decomposition(self, save_plot=False, file_path=None):
+    def plot_decomposition(self, zoom=None, save_plot=False, file_path=None):
         '''
         Plots the individual components and the combined series of a time series decomposition.
 
         Parameters:
         None
-        
+
         Returns:
         None. Displays the decomposition plot.
         '''
+        # This function was generated largly with the help of chatGPT
+        amount_to_show = zoom
+        if zoom == None:
+          amount_to_show = len(self.df[self.col_names[0]])
+
+        start_index = self.df[self.col_names[0]][0]  # Replace with your desired start index
+        end_index = self.df[self.col_names[0]][amount_to_show-1]    # Replace with your desired end index
+
+        # Set the datetime column as the index
+        decomp_df = self.df.set_index(self.col_names[0])
+
         # Decompose the time series data into its components: observed, trend, seasonal, and residual
-        decomposition = seasonal_decompose(self.df["Values"], model='additive', period=365)
+        decomposition = seasonal_decompose(decomp_df[self.col_names[1]], model='additive', period=365)
 
         # Create a figure with 4 subplots, one for each component
         fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(15, 12))
 
         # Set the title of the entire figure
         fig.suptitle(self.data_name, fontsize=16)
-        
-        # Plot the observed data
-        decomposition.observed.plot(ax=ax1, color=self.colors[0])
+
+        # Define the start and end indices for the subset you want to plot
+        start_index = self.df[self.col_names[0]][0]
+        end_index = self.df[self.col_names[0]][amount_to_show-1]
+
+        # Plot the observed data with preserved datetime index
+        observed_subset = decomposition.observed[start_index:end_index]
+        observed_subset.plot(ax=ax1, color=self.colors[0])
         ax1.set_ylabel('Observed')
 
-        # Plot the seasonal component
-        decomposition.seasonal.plot(ax=ax3, color=self.colors[1])
-        ax3.set_ylabel('Seasonal')
-        
         # Plot the trend component
-        decomposition.trend.plot(ax=ax2, color=self.colors[2])
+        trend_subset = decomposition.trend[start_index:end_index]
+        trend_subset.plot(ax=ax2, color=self.colors[2])
         ax2.set_ylabel('Trend')
-        
+
+        # Plot the seasonal component
+        seasonal_subset = decomposition.seasonal[start_index:end_index]
+        seasonal_subset.plot(ax=ax3, color=self.colors[1])
+        ax3.set_ylabel('Seasonal')
+
         # Plot the residual component
-        decomposition.resid.plot(ax=ax4, color=self.colors[3])
+        residual_subset = decomposition.resid[start_index:end_index]
+        residual_subset.plot(ax=ax4, color=self.colors[3])
         ax4.set_ylabel('Residual')
-        
+
         if save_plot:
             if file_path == None:
                 file_path = self.default_file_path
